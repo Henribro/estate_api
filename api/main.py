@@ -16,20 +16,21 @@ class UserModel(db.Model):
 	first_name = db.Column(db.String(50),nullable=False)
 	date_of_birth = db.Column(db.String(10),nullable = False)
 
+	houses = db.relationship('HouseModel', backref='owner')
+
 	def __repr__(self):
 		return f"User (last_name = {last_name}, first_name = {first_name}, date_of_birth = {date_of_birth})"
 
-# class HousesModel(db.Model):
-# 	__tablename__ = "houses"
+class HouseModel(db.Model):
+	__tablename__ = "houses"
 
-# 	id = db.Column(db.Integer,primary_key=True)
-# 	user_id = db.Column(db.Integer,db.ForeignKey("users.id"))
-# 	name = db.Column(db.String(db))
-# 	location = db.Column(db.String(50),nullable=False)
-# 	surface_area = db.Column(db.Integer,nullable=True)
+	id = db.Column(db.Integer,primary_key=True)
+	user_id = db.Column(db.Integer,db.ForeignKey("users.id"))
+	name = db.Column(db.String(50),nullable=False)
+	location = db.Column(db.String(50),nullable=False)
 
-# 	def __repr__(self):
-# 		return f"House (name = {name}, location = {location}, surface_area = {surface_area})"
+	def __repr__(self):
+		return f"House (name = {name}, user id = {user_id}, location = {location})"
 
 # class RoomsModel(db.Model):
 # 	__tablename__ = "rooms"
@@ -42,7 +43,7 @@ class UserModel(db.Model):
 # 	def __repr__(self):
 # 		return f"Room (name = {name}, surface_area = {surface_area})"
 
-# db.create_all()
+db.create_all()
 
 ##
 
@@ -68,7 +69,7 @@ class UserModel(db.Model):
 # 		args = house_put_args.parse_args()
 # 		return {user_id : args}
 
-##
+##--USER----------------------------------------------------------------------
 
 user_put_args = reqparse.RequestParser()
 user_put_args.add_argument("last_name", type=str,help="Family name of user required",required=True)
@@ -124,38 +125,80 @@ class User(Resource):
 		return result
 		
 
+##--HOUSE--------------------------------------------------------------
 
+house_put_args = reqparse.RequestParser()
+house_put_args.add_argument("name", type=str,help="name of house is required",required=True)
+house_put_args.add_argument("location", type=str,help="location of house is required",required=True)
+
+house_update_args = reqparse.RequestParser()
+house_update_args.add_argument("name", type=str,help="name of house is required",required=False)
+house_update_args.add_argument("location", type=str,help="location of house is required",required=False)
+
+house_fields = {
+	"id" : fields.Integer,
+	"user_id" : fields.Integer,
+	"name" : fields.String,
+	"location" : fields.String,
+}
+class House(Resource):
+	@marshal_with(house_fields)
+	def put(self,user_id,house_id):
+		print(user_id)
+		result = HouseModel.query.filter_by(id=house_id).first()
+		if result:
+			abort(409,message="house id already exists")
+
+		args = house_put_args.parse_args()
+		house = HouseModel(id=house_id,user_id=int(user_id),name=args["name"],location=args["location"])
+		db.session.add(house)
+		db.session.commit()
+		return house, 201
+
+	@marshal_with(house_fields)
+	def get(self,user_id,house_id):
+		result = HouseModel.query.filter_by(id=house_id).first()
+		if not result:
+			abort(404, message="House does not exist")
+		if result.user_id != int(user_id):
+			abort(403, message="Cannot access this property")
+		return result
+
+	@marshal_with(house_fields)
+	def patch(self,user_id,house_id):
+		args = house_update_args.parse_args()
+		result = HouseModel.query.filter_by(id=house_id).first()
+		if not result:
+			abort(404, message="House does not exist")
+		if result.user_id != int(user_id):
+			print("result.userid : "+result.user_id )
+			print("user_id : "+user_id)
+			abort(403, message="Cannot access this property")
+
+		if args["name"]:
+			result.name = args["name"]
+		if args["location"]:
+			result.location = args["location"]
+
+		db.session.commit()
+		return result
+
+##--BROWSER-------------------------------------------------------------------
+
+
+class Search(Resource):
+	@marshal_with(house_fields)
+	def get(self,location):
+		result = HouseModel.query.filter_by(location=location).all()
+		if not result:
+			abort(404, message="No results found")
+		return result
+
+##--ASSIGNMENTS-------------------------------------------------------------------
 
 api.add_resource(User,"/user/<user_id>")
-##
-
-# house_put_args = reqparse.RequestParser()
-# house_put_args.add_argument("user_id", type=str,help="ID of user required",required=True)
-# house_put_args.add_argument("name", type=str,help="Name of house required",required=True)
-# house_put_args.add_argument("location", type=str,help="Location of house required",required=True)
-# house_put_args.add_argument("surface_area", type=int,help="Surface area of house required")
-
-
-# house_fields = {
-# 	"id" : fields.Integer,
-# 	"user_id" : fields.Integer,
-# 	"name" : fields.String,
-# 	"location" : fields.String,
-# 	"surface_area" : fields.Integer,
-# }
-# class House(Resource):
-# 	@marshal_with(house_fields)
-# 	def put(self,user_id):
-# 		args = house_put_args.parse_args()
-# 		house = HousesModel(user_id=args["user_id"],name=args["name"],location=args["location"],surface_area=args["surface_area"])
-# 		db.session.add(house)
-# 		db.session.commit()
-# 		return house, 201
-
-
-
-# api.add_resource(House,"/browse/<string:name>")
-# api.add_resource(User,"/account/<user_id>")
+api.add_resource(House,"/user/<user_id>/<house_id>")
+api.add_resource(Search,"/browse/<location>")
 
 if __name__ == "__main__":
     app.run(debug=True)
