@@ -183,6 +183,7 @@ class House(Resource):
 		db.session.commit()
 		return result
 
+
 ##--BROWSER-------------------------------------------------------------------
 
 
