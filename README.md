@@ -14,15 +14,27 @@ In the **api** directory run :
 
 The server runs on http://127.0.0.1:5000/
 
-## Test a few requests
+## Fill the database
 
 In the **api** directory run :
 
-    $ python test.py
+    $ python db_setup.py
 
-These requests will :
+It will fill the database with some users, some houses and some rooms
 
- - Create some users
- - Give them one property or more
- - Modify a property, modify user data
- - Search into the database by city
+## Test
+
+Go on an internet browser
+
+#Estate browsing
+
+Try 
+	http://127.0.0.1:5000/browse/Caen
+	http://127.0.0.1:5000/browse/Magne
+	http://127.0.0.1:5000/browse/Marseille
+
+#User access
+
+Try
+	http://127.0.0.1:5000/user/0
+	http://127.0.0.1:5000/user/1
